@@ -1,0 +1,237 @@
+import discord
+import requests
+import time
+import json
+
+intents = discord.Intents.default()
+intents.message_content = True
+intents.reactions = True
+
+client = discord.Client(intents=intents)
+
+delete_instructions = "Reaja com ✅ para apagar a mensagem."
+cpf_api_url = "http://fightinsta.online/Catholic-Data-cpf/index.php/consulta?cpf="
+cnpj_api_url = "https://api-publica.speedio.com.br/buscarcnpj?cnpj="
+tel_api_url = "http://20.226.46.188/apitel/indexx.php?tel="
+
+@client.event
+async def on_ready():
+    print(f'Logged in as {client.user.name}')
+
+@client.event
+async def on_message(message):
+    if message.author == client.user:
+        await message.add_reaction('✅')
+        return
+
+    if message.content.startswith('!cpf'):
+        start_time = time.time()
+
+        args = message.content.split(' ')
+        if len(args) != 2 or len(args[1]) != 11 or not args[1].isdigit():
+            error_message = (
+                f'❌ {message.author.mention} Use o formato: `!cpf <CPF válido>`\n'
+                f"Exemplo: `!cpf 29653927850`\n\n{delete_instructions}"
+            )
+            sent_error_message = await message.channel.send(error_message)
+            await sent_error_message.add_reaction('❌')
+            await message.delete()
+            return
+
+        cpf = args[1]
+        api_url = cpf_api_url + cpf
+
+        response = requests.get(api_url)
+        try:
+            data = response.json()
+
+            response_text = f"📋 Dados do CPF {cpf}\n\n"
+            response_text += f"Nome: {data['nome']}\n"
+            response_text += f"Data de Nascimento: {data['dataNascimento']}\n"
+            response_text += f"Sexo: {data['sexo']}\n"
+            response_text += f"Óbito: {data['obito']}\n"
+            response_text += f"Mãe: {data['nomeMae']}\n"
+            telefone = data['telefone'][0]
+            response_text += f"Telefone: ({telefone['ddi']}) {telefone['ddd']} {telefone['numero']}\n"
+
+            endereco = data['endereco']
+            response_text += f"Endereço: {endereco['logradouro']}, {endereco['numero']}, {endereco['bairro']}, {endereco['municipio']} - {endereco['siglaUf']}\n"
+            
+            nacionalidade = data['nacionalidade']
+            response_text += f"Nacionalidade: {nacionalidade['nacionalidade']}\n"
+            
+            vacinas = data['vacinas']
+            if vacinas:
+                response_text += "\nHistórico de Vacinas:\n"
+                for vacina in vacinas['outrasImunizacoes']['imunobiologicos']:
+                    response_text += f"- {vacina['nome']} ({vacina['abreviatura']}), Aplicada em {vacina['imunizacoes'][0]['dataAplicacao']}\n"
+
+            response_text += f"\n[Oferecimento de Catholic Data](https://t.me/CatholicDataX)\n\nReaja com ✅ para apagar a consulta.\n"
+            sent_message = await message.channel.send(f'{message.author.mention}\n{response_text}')
+            await sent_message.add_reaction('✅')
+            await message.delete()
+
+        except json.JSONDecodeError:
+            error_message = f'❌ {message.author.mention} Ocorreu um erro ao buscar as informações do CPF.\n\n{delete_instructions}'
+            sent_error_message = await message.channel.send(error_message)
+            await sent_error_message.add_reaction('❌')
+            await message.delete()
+
+        except Exception as e:
+            error_message = f'❌ {message.author.mention} Ocorreu um erro ao buscar o CPF.\n\n{delete_instructions}'
+            sent_error_message = await message.channel.send(error_message)
+            await sent_error_message.add_reaction('❌')
+            await message.delete()
+
+
+    if message.content.startswith('!cnpj'):
+        start_time = time.time()
+
+        args = message.content.split(' ')
+        if len(args) != 2 or len(args[1]) != 14 or not args[1].isdigit():
+            error_message = (
+                f'❌ {message.author.mention} Use o formato: `!cnpj <CNPJ válido>`\n'
+                f"Exemplo: `!cnpj 34966262000127`\n\n{delete_instructions}"
+            )
+            sent_error_message = await message.channel.send(error_message)
+            await sent_error_message.add_reaction('❌')
+            await message.delete()
+            return
+
+        cnpj = args[1]
+        api_url = cnpj_api_url + cnpj
+        
+        response = requests.get(api_url)
+        try:
+            data = response.json()
+
+            response_text = f"📋 **Dados do CNPJ {cnpj}**\n\n"
+            for key, value in data.items():
+                response_text += f"**{key.capitalize()}:** {value}\n"
+
+            response_text += f"\n[Oferecimento de Catholic Data](https://t.me/CatholicDataX)\n\nReaja com ✅ para apagar a consulta.\n"
+
+            sent_message = await message.channel.send(f'{message.author.mention}\n{response_text}')
+            await sent_message.add_reaction('✅')
+            await message.delete()
+
+        except json.JSONDecodeError:
+            error_message = f'❌ {message.author.mention} Ocorreu um erro ao buscar o CNPJ.\n\n{delete_instructions}'
+            sent_error_message = await message.channel.send(error_message)
+            await sent_error_message.add_reaction('❌')
+            await message.delete()
+
+    if message.content.startswith('!tel'):
+        start_time = time.time()
+
+        args = message.content.split(' ')
+        if len(args) != 2 or not args[1].isdigit():
+            error_message = (
+                f'❌ {message.author.mention} Use o formato: `!tel <número de telefone>`\n'
+                f"Exemplo: `!tel 32984470970`\n\n{delete_instructions}"
+            )
+            sent_error_message = await message.channel.send(error_message)
+            await sent_error_message.add_reaction('❌')
+            await message.delete()
+            return
+
+        telefone = args[1]
+        api_url = tel_api_url + telefone
+
+        response = requests.get(api_url)
+        try:
+            data = response.json()
+
+            response_text = f"📋 **Dados do Telefone {telefone}**\n\n"
+            for key, value in data.items():
+                response_text += f"**{key.capitalize()}:** {value}\n"
+
+            response_text += f"\n[Oferecimento de Catholic Data](https://t.me/CatholicDataX)\n\nReaja com ✅ para apagar a consulta.\n"
+
+            sent_message = await message.channel.send(f'{message.author.mention}\n{response_text}')
+            await sent_message.add_reaction('✅')
+            await message.delete()
+
+        except json.JSONDecodeError:
+            error_message = f'❌ {message.author.mention} Ocorreu um erro ao buscar as informações do telefone.\n\n{delete_instructions}'
+            sent_error_message = await message.channel.send(error_message)
+            await sent_error_message.add_reaction('❌')
+            await message.delete()
+
+    if message.content.startswith('!s'):
+        await message.channel.send(f'⏱️ O bot demora aproximadamente {client.latency * 1000:.2f} ms para responder.')
+
+    if message.content.startswith('!menu'):
+        menu = (
+            "📋 **Comandos disponíveis:**\n"
+            "🔍 `!cpf <CPF válido>`: Consulta informações de um CPF.\n"
+            "📇 `!cnpj <CNPJ válido>`: Consulta informações de um CNPJ.\n"
+            "☎️ `!tel <número de telefone>`: Consulta informações de um telefone.\n"
+            "📃 `!bin <primeiros 6 dígitos>`: Consulta informações de um BIN.\n"
+            "⏱️ `!s`: Mostra o tempo de resposta do bot.\n"
+            "🗑️ `!clear`: Limpa as mensagens do canal (apenas administradores).\n"
+            f"🚀 {delete_instructions}"
+        )
+        await message.channel.send(menu)
+
+    if message.content.startswith('!bin'):
+        args = message.content.split(' ')
+        if len(args) != 2 or len(args[1]) != 6 or not args[1].isdigit():
+            error_message = (
+                f'❌ {message.author.mention} Use o formato: `!bin <primeiros 6 dígitos da cc>`\n'
+                f"Exemplo: `!bin 123456`\n\n{delete_instructions}"
+            )
+            sent_error_message = await message.channel.send(error_message)
+            await sent_error_message.add_reaction('❌')
+            await message.delete()
+            return
+
+        bin_prefix = args[1]
+        api_url = f'https://midia-171-api-free.onrender.com/bin/{bin_prefix}'
+        
+        response = requests.get(api_url)
+        try:
+            data = response.json()
+
+            response_text = (
+                f"📋 **Informações do BIN {bin_prefix}**\n\n"
+                f"🏦 Banco: {data['info']['banco']}\n"
+                f"🏳️ Bandeira: {data['info']['bandeira']}\n"
+                f"🗂️ Categoria: {data['info']['categoria']}\n"
+                f"🌐 País: {data['info']['pais']}\n"
+                f"🔑 Tipo: {data['info']['tipo']}\n"
+                f"💳 Prepago: {'Sim' if data['info']['prepago'] else 'Não'}\n"
+                f"\n[Oferecimento de Catholic Data](https://t.me/CatholicDataX)"
+                f"\n\nReaja com ✅ para apagar a consulta.\n"
+            )
+
+            sent_message = await message.channel.send(f'{message.author.mention}\n{response_text}')
+            await sent_message.add_reaction('✅')
+            await message.delete()
+
+        except json.JSONDecodeError:
+            error_message = f'❌ {message.author.mention} Ocorreu um erro ao buscar as informações do BIN.\n\n{delete_instructions}'
+            sent_error_message = await message.channel.send(error_message)
+            await sent_error_message.add_reaction('❌')
+            await message.delete()
+
+    if message.content.startswith('!clear'):
+        if message.author.guild_permissions.administrator:
+            await message.channel.purge()
+        else:
+            error_message = f'❌ {message.author.mention} Você não tem permissão para usar esse comando.\n\n{delete_instructions}'
+            sent_error_message = await message.channel.send(error_message)
+            await sent_error_message.add_reaction('❌')
+
+@client.event
+async def on_reaction_add(reaction, user):
+    if user != client.user:
+        if reaction.emoji == '✅':
+            if reaction.message.author == client.user or reaction.message.author == user:
+                await reaction.message.delete()
+        elif reaction.emoji == '❌':
+            if reaction.message.author == client.user or reaction.message.author == user:
+                await reaction.message.delete()
+
+#token do bot aqui, caso for repostar na tire os creditos (dev @batataxd)
+client.run('aqui o token mundiça')
